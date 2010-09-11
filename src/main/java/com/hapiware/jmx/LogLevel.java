@@ -1,6 +1,5 @@
 package com.hapiware.jmx;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Iterator;
@@ -26,18 +25,11 @@ import sun.jvmstat.monitor.MonitoredVmUtil;
 import sun.jvmstat.monitor.VmIdentifier;
 import sun.management.ConnectorAddressLink;
 
-import com.sun.tools.attach.AgentInitializationException;
-import com.sun.tools.attach.AgentLoadException;
-import com.sun.tools.attach.AttachNotSupportedException;
-import com.sun.tools.attach.VirtualMachine;
-
 public class LogLevel
 {
 	private static final String LOGGING_NAME = "java.util.logging:type=Logging";
 	
-	// Java 5, kŠynnistŠ ohjelma -Dcom.sun.management.jmxremote
-	// Java 6, ei tartte, kŠytŠ getConnections()-metodia (kts. tiedoston lopusta).
-	
+
 	public static void main(String[] args)
 	{
 		if(args.length == 0 || args.length > 4)
@@ -98,6 +90,7 @@ public class LogLevel
 		System.out.println("          l");
 		System.out.println("          list");
 		System.out.println("              Lists PIDs and names of connectable JVMs.");
+		System.out.println("              PID starting with asterix (*) means that JMX agent is not runnig for that JVM.");
 		System.out.println();
 		System.out.println("          p PID PATTERN");
 		System.out.println("          print PID PATTERN");
@@ -125,12 +118,13 @@ public class LogLevel
 			Set<?> vms = mh.activeVms();
 			for(Iterator<?> it = vms.iterator(); it.hasNext(); /* empty */) {
 				Integer pid = (Integer)it.next();
-				String serviceUrl = ConnectorAddressLink.importFrom(pid);
-				if(serviceUrl == null)
+				MonitoredVm vm = mh.getMonitoredVm(new VmIdentifier(pid.toString()));
+				String commandLine = MonitoredVmUtil.commandLine(vm);
+				if(commandLine.toLowerCase().contains("loglevel"))
 					continue;
 				
-				MonitoredVm vm = mh.getMonitoredVm(new VmIdentifier(pid.toString()));
-				System.out.println(pid + " " + MonitoredVmUtil.commandLine(vm));
+				String serviceUrl = ConnectorAddressLink.importFrom(pid);
+				System.out.println((serviceUrl == null ? "*" : "")  + pid + " " + commandLine);
 				vm.detach();
 			}
 		}
@@ -194,7 +188,11 @@ public class LogLevel
 		try {
 			MBeanServerConnection connection = getConnection(pid);
 			if(connection == null) {
-				System.out.println("Cannot connect to " + pid);
+				System.out.println("Cannot connect to " + pid + ". JMX agent is not running.");
+				System.out.println(
+					"Start target JVM with -Dcom.sun.management.jmxremote or" 
+					+ " if you are running JVM 1.6 or later use startJmx service."
+				);
 				System.exit(-1);
 			}
 			Pattern pattern = Pattern.compile(loggerNamePattern);
@@ -272,28 +270,6 @@ public class LogLevel
 		}
 		catch(MBeanException e) {
 			e.printStackTrace();
-		}
-	}
-	
-	private static String getConnectionAddress(String pid)
-		throws 
-			AttachNotSupportedException, IOException, AgentLoadException, AgentInitializationException
-	{
-		VirtualMachine vm = VirtualMachine.attach(pid);
-		try {
-			String connectionAddress =
-				vm.getAgentProperties().getProperty("com.sun.management.jmxremote.localConnectorAddress");
-			if(connectionAddress != null)
-				return connectionAddress;
-			vm.loadAgent(
-				vm.getSystemProperties().getProperty("java.home")
-					+ File.separator + "lib" + File.separator + "management-agent.jar"
-			);
-			return
-				vm.getAgentProperties().getProperty("com.sun.management.jmxremote.localConnectorAddress");
-		}
-		finally {
-			vm.detach();
 		}
 	}
 }
