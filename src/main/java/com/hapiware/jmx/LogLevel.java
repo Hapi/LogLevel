@@ -9,12 +9,7 @@ import java.util.regex.Pattern;
 
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
-import javax.management.IntrospectionException;
-import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanException;
-import javax.management.MBeanInfo;
-import javax.management.MBeanOperationInfo;
-import javax.management.MBeanParameterInfo;
 import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
@@ -23,11 +18,6 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
-import com.sun.tools.attach.AgentInitializationException;
-import com.sun.tools.attach.AgentLoadException;
-import com.sun.tools.attach.AttachNotSupportedException;
-import com.sun.tools.attach.VirtualMachine;
-
 import sun.jvmstat.monitor.HostIdentifier;
 import sun.jvmstat.monitor.MonitorException;
 import sun.jvmstat.monitor.MonitoredHost;
@@ -35,7 +25,11 @@ import sun.jvmstat.monitor.MonitoredVm;
 import sun.jvmstat.monitor.MonitoredVmUtil;
 import sun.jvmstat.monitor.VmIdentifier;
 import sun.management.ConnectorAddressLink;
-import sun.tools.jconsole.LocalVirtualMachine;
+
+import com.sun.tools.attach.AgentInitializationException;
+import com.sun.tools.attach.AgentLoadException;
+import com.sun.tools.attach.AttachNotSupportedException;
+import com.sun.tools.attach.VirtualMachine;
 
 public class LogLevel
 {
@@ -43,9 +37,6 @@ public class LogLevel
 	
 	// Java 5, käynnistä ohjelma -Dcom.sun.management.jmxremote
 	// Java 6, ei tartte, käytä getConnections()-metodia (kts. tiedoston lopusta).
-	
-	
-	// service:jmx:rmi:///jndi/rmi://localhost:1099/server
 	
 	public static void main(String[] args)
 	{
@@ -99,8 +90,9 @@ public class LogLevel
 	
 	private static void usage()
 	{
-		System.out.println("Usage: java LogLevel [-? | -h | -help | --help]");
-		System.out.println("       java LogLevel CMD");
+		final String logLevel = "java -jar loglevel-1.0.0.jar";
+		System.out.println("Usage: " + logLevel + " [-? | -h | -help | --help]");
+		System.out.println("       " + logLevel + " CMD");
 		System.out.println();
 		System.out.println("       CMD:");
 		System.out.println("          l");
@@ -118,10 +110,10 @@ public class LogLevel
 		System.out.println("              (Java RE) for a JVM process PID.");
 		System.out.println();
 		System.out.println("Examples:");
-		System.out.println("    java LogLevel -?");
-		System.out.println("    java LogLevel list");
-		System.out.println("    java LogLevel p 50001 ^.+");
-		System.out.println("    java LogLevel set 50001 ^com\\.hapiware\\.Test.* INFO");
+		System.out.println("    " + logLevel + " -?");
+		System.out.println("    " + logLevel + " list");
+		System.out.println("    " + logLevel + " p 50001 ^.+");
+		System.out.println("    " + logLevel + " set 50001 ^com\\.hapiware\\.Test.* INFO");
 		System.out.println();
 		System.exit(0);
 	}
@@ -281,132 +273,6 @@ public class LogLevel
 		catch(MBeanException e) {
 			e.printStackTrace();
 		}
-	}
-	
-	private static void test1()
-	{
-		try {
-			//HostIdentifier hi = new HostIdentifier("localhost");
-			HostIdentifier hi = new HostIdentifier((String)null);
-			MonitoredHost mh = MonitoredHost.getMonitoredHost(hi); 
-			Set<?> vms = mh.activeVms();
-			System.out.println(hi.getHost());
-			System.out.println(vms.size());
-			for(Iterator<?> it = vms.iterator(); it.hasNext(); /* empty */) {
-				Integer pid = (Integer)it.next();
-				//getConnectionAddress(pid.toString());
-				String str = ConnectorAddressLink.importFrom(pid);
-				System.out.println(pid + " : " + str);
-				VmIdentifier vmid = new VmIdentifier(pid.toString());
-				System.out.println("::" + vmid.getURI());
-				MonitoredVm vm = mh.getMonitoredVm(vmid);
-				System.out.println("-> " + MonitoredVmUtil.commandLine(vm));
-				vm.detach();
-				LocalVirtualMachine lvm;
-				//JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://localhost:9999/jmxrmi");
-				// localhost:0
-				if(MonitoredVmUtil.commandLine(vm).equals("AgentTest")) {
-					//JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:rmi:///jndi/rmi:" + vmid.getURI());
-					String url = vmid.getURI().toString();
-					System.out.println("url : " + str);
-					JMXServiceURL jmxUrl = new JMXServiceURL(str);
-					//JMXServiceURL jmxUrl = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://localhost:1099/server");
-					JMXConnector connector = JMXConnectorFactory.connect(jmxUrl);
-					//JMXConnector connector = JMXConnectorFactory.newJMXConnector(jmxUrl, null);
-					//connector.connect();
-					System.out.println("connID : " + connector.getConnectionId());
-					//MBeanServerConnection connection = ManagementFactory.getPlatformMBeanServer();
-					MBeanServerConnection connection = connector.getMBeanServerConnection();
-					
-					//java.util.logging:type=Logging
-					ObjectName name = new ObjectName("java.util.logging:type=Logging");
-					MBeanInfo info = connection.getMBeanInfo(name);
-					for(MBeanOperationInfo oi : info.getOperations()) {
-						System.out.println(oi.getName());
-						for(MBeanParameterInfo pi : oi.getSignature())
-							System.out.println(pi.getType());
-					}
-					for(MBeanAttributeInfo ai : info.getAttributes()) {
-						System.out.println("attr: " + ai.getName() + " : " + ai.getType());
-					}
-					String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
-					for(String ln : loggerNames)
-						System.out.println("logger : " + ln);
-					String retVal = 
-						(String)connection.invoke(
-							name,
-							"getLoggerLevel",
-							new String[] {"AgentTest"},
-							new String [] {"java.lang.String"}
-						);
-					System.out.println("Level = " + retVal);
-					connection.invoke(
-						name,
-						"setLoggerLevel",
-						new String[] {"AgentTest", "INFO"},
-						new String [] {"java.lang.String", "java.lang.String"}
-					);
-				}
-			}
-		}
-		catch(URISyntaxException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		//sun.jvmstat.perfdata.monitor.protocol.file.MonitoredHostProvider
-		catch(MonitorException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(InstanceNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(IntrospectionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(MalformedObjectNameException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(ReflectionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(NullPointerException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(MBeanException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(AttributeNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	private static void test2()
-	{
-		try {
-			String str = ConnectorAddressLink.importFrom(49481);
-			System.out.println(str);
-		}
-		catch(NullPointerException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch(IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
 	}
 	
 	private static String getConnectionAddress(String pid)
