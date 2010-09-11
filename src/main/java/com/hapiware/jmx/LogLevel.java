@@ -155,7 +155,8 @@ public class LogLevel
 			connection = connector.getMBeanServerConnection();
 		}
 		catch(IOException e) {
-			e.printStackTrace();
+			System.out.println("Process " + pid + " not found.");
+			System.exit(-1);
 		}
 		return connection;
 	}
