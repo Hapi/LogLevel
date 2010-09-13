@@ -25,6 +25,13 @@ import sun.jvmstat.monitor.MonitoredVmUtil;
 import sun.jvmstat.monitor.VmIdentifier;
 import sun.management.ConnectorAddressLink;
 
+/**
+ * LogLevel is a small command line utility to show and change level of Java Loggers
+ * {@link java.util.logging.Logger} without restarting the target JVM.
+ * 
+ * @author hapi
+ *
+ */
 public class LogLevel
 {
 	private static final String LOGGING_NAME = "java.util.logging:type=Logging";
@@ -33,16 +40,16 @@ public class LogLevel
 	public static void main(String[] args)
 	{
 		if(args.length == 0 || args.length > 4)
-			usage();
+			usageAndExit(-1);
 		
-		if((args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list")) && args.length != 1)
-			usage();
+		if((args[0].equalsIgnoreCase("j") || args[0].equalsIgnoreCase("jobs")) && args.length != 1)
+			usageAndExit(-1);
 		
-		if((args[0].equalsIgnoreCase("p") || args[0].equalsIgnoreCase("print")) && args.length != 3)
-			usage();
+		if((args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list")) && args.length != 3)
+			usageAndExit(-1);
 		
 		if((args[0].equalsIgnoreCase("s") || args[0].equalsIgnoreCase("set")) && args.length != 4)
-			usage();
+			usageAndExit(-1);
 		
 		if(
 			args[0].equalsIgnoreCase("-?") ||
@@ -50,19 +57,19 @@ public class LogLevel
 			args[0].equalsIgnoreCase("-help") ||
 			args[0].equalsIgnoreCase("--help")
 		)
-			usage();
+			usageAndExit(0);
 		
-		if(args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list")) {
+		if(args[0].equalsIgnoreCase("j") || args[0].equalsIgnoreCase("jobs")) {
 			listJvms();
 		} else
-			if(args[0].equalsIgnoreCase("p") || args[0].equalsIgnoreCase("print")) {
+			if(args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list")) {
 				try {
 					Integer pid = Integer.valueOf(args[1]);
-					printLevels(pid, args[2]);
+					showLevels(pid, args[2]);
 				}
 				catch(NumberFormatException ex) {
 					System.out.println(args[1] + " was not recognized as PID.");
-					usage();
+					usageAndExit(-1);
 				}
 			} else
 				if(args[0].equalsIgnoreCase("s") || args[0].equalsIgnoreCase("set")) {
@@ -72,43 +79,47 @@ public class LogLevel
 					}
 					catch(NumberFormatException ex) {
 						System.out.println(args[1] + " was not recognized as PID.");
-						usage();
+						usageAndExit(-1);
 					}
 				} else {
 					System.out.println("Command (" + args[0] + ") not recognized.");
-					usage();
+					usageAndExit(-1);
 				}
 	}
 	
-	private static void usage()
+	private static void usageAndExit(int status)
 	{
-		final String logLevel = "java -jar loglevel-1.0.0.jar";
+		final String logLevel = "java -jar loglevel.jar";
+		System.out.println("Description: Lists and sets the logging level of Java Loggers (java.util.logging.Logger) on the run.");
+		System.out.println();
 		System.out.println("Usage: " + logLevel + " [-? | -h | -help | --help]");
-		System.out.println("       " + logLevel + " CMD");
+		System.out.println("       " + logLevel + " COMMAND [ARGS]");
 		System.out.println();
-		System.out.println("       CMD:");
-		System.out.println("          l");
-		System.out.println("          list");
-		System.out.println("              Lists PIDs and names of connectable JVMs.");
-		System.out.println("              PID starting with asterix (*) means that JMX agent is not runnig for that JVM.");
+		System.out.println("       COMMAND:");
+		System.out.println("          j");
+		System.out.println("          jobs");
+		System.out.println("              Shows PIDs and names of running JVMs (jobs). PID starting with");
+		System.out.println("              an asterisk (*) means that JMX agent is not runnig on that JVM.");
+		System.out.println("              Start the target JVM with -Dcom.sun.management.jmxremote or");
+		System.out.println("              if you are running JVM 1.6 or later use startjmx service.");
 		System.out.println();
-		System.out.println("          p PID PATTERN");
-		System.out.println("          print PID PATTERN");
-		System.out.println("              Prints current logging levels for all loggers matching PATTERN");
-		System.out.println("              (Java RE) for a JVM process PID.");
+		System.out.println("          l PID PATTERN");
+		System.out.println("          list PID PATTERN");
+		System.out.println("              Lists current logging levels for all loggers matching PATTERN");
+		System.out.println("              (Java RE) of a JVM process with PID.");
 		System.out.println();
 		System.out.println("          s PID PATTERN LEVEL");
 		System.out.println("          set PID PATTERN LEVEL");
 		System.out.println("              Sets a new logging level LEVEL for all loggers matching PATTERN");
-		System.out.println("              (Java RE) for a JVM process PID.");
+		System.out.println("              (Java RE) for a JVM process with PID.");
 		System.out.println();
 		System.out.println("Examples:");
 		System.out.println("    " + logLevel + " -?");
-		System.out.println("    " + logLevel + " list");
-		System.out.println("    " + logLevel + " p 50001 ^.+");
+		System.out.println("    " + logLevel + " jobs");
+		System.out.println("    " + logLevel + " l 50001 ^.+");
 		System.out.println("    " + logLevel + " set 50001 ^com\\.hapiware\\.Test.* INFO");
 		System.out.println();
-		System.exit(0);
+		System.exit(status);
 	}
 	
 	private static void listJvms()
@@ -184,15 +195,15 @@ public class LogLevel
 		return level;
 	}
 	
-	private static void printLevels(Integer pid, String loggerNamePattern)
+	private static void showLevels(Integer pid, String loggerNamePattern)
 	{
 		try {
 			MBeanServerConnection connection = getConnection(pid);
 			if(connection == null) {
 				System.out.println("Cannot connect to " + pid + ". JMX agent is not running.");
 				System.out.println(
-					"Start target JVM with -Dcom.sun.management.jmxremote or" 
-					+ " if you are running JVM 1.6 or later use startJmx service."
+					"Start the target JVM with -Dcom.sun.management.jmxremote or" 
+					+ " if you are running JVM 1.6 or later use startjmx service."
 				);
 				System.exit(-1);
 			}
@@ -232,7 +243,11 @@ public class LogLevel
 		try {
 			MBeanServerConnection connection = getConnection(pid);
 			if(connection == null) {
-				System.out.println("Cannot connect to " + pid);
+				System.out.println("Cannot connect to " + pid + ". JMX agent is not running.");
+				System.out.println(
+					"Start the target JVM with -Dcom.sun.management.jmxremote or" 
+					+ " if you are running JVM 1.6 or later use startjmx service."
+				);
 				System.exit(-1);
 			}
 			Pattern pattern = Pattern.compile(loggerNamePattern);
