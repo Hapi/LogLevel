@@ -2,7 +2,9 @@ package com.hapiware.jmx;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -34,23 +36,27 @@ import sun.management.ConnectorAddressLink;
  */
 public class LogLevel
 {
-	private static final String LOGGING_NAME = "java.util.logging:type=Logging";
-	
+	private static final String JAVA_LOGGING_NAME = "java.util.logging:type=Logging";
+	private static final String LOG4J_LOGGING_NAME = "org.apache.log4j:type=Logging";
 
+	
 	public static void main(String[] args)
 	{
-		if(args.length == 0 || args.length > 4)
+		// Checks first the correct number of arguments.
+		if(args.length == 0 || args.length > 5)
 			usageAndExit(-1);
-		
 		if((args[0].equalsIgnoreCase("j") || args[0].equalsIgnoreCase("jobs")) && args.length != 1)
 			usageAndExit(-1);
-		
-		if((args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list")) && args.length != 3)
+		if(
+			(args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list"))
+			&& (args.length < 3 || args.length > 4)
+		)
 			usageAndExit(-1);
-		
-		if((args[0].equalsIgnoreCase("s") || args[0].equalsIgnoreCase("set")) && args.length != 4)
+		if(
+			(args[0].equalsIgnoreCase("s") || args[0].equalsIgnoreCase("set"))
+			&& (args.length < 4 || args.length > 5)
+		)
 			usageAndExit(-1);
-		
 		if(
 			args[0].equalsIgnoreCase("-?") ||
 			args[0].equalsIgnoreCase("-h") ||
@@ -58,14 +64,18 @@ public class LogLevel
 			args[0].equalsIgnoreCase("--help")
 		)
 			usageAndExit(0);
-		
+
+		// Each command is handled separately.
 		if(args[0].equalsIgnoreCase("j") || args[0].equalsIgnoreCase("jobs")) {
 			listJvms();
 		} else
 			if(args[0].equalsIgnoreCase("l") || args[0].equalsIgnoreCase("list")) {
 				try {
 					Integer pid = Integer.valueOf(args[1]);
-					showLevels(pid, args[2]);
+					if(args.length == 3)
+						showLevels(pid, null, args[2]);
+					else
+						showLevels(pid, args[2], args[3]);
 				}
 				catch(NumberFormatException ex) {
 					System.out.println(args[1] + " was not recognized as PID.");
@@ -75,7 +85,10 @@ public class LogLevel
 				if(args[0].equalsIgnoreCase("s") || args[0].equalsIgnoreCase("set")) {
 					try {
 						Integer pid = Integer.valueOf(args[1]);
-						setLevels(pid, args[2], args[3]);
+						if(args.length == 4)
+							setLevels(pid, null, args[2], args[3]);
+						else
+							setLevels(pid, args[2], args[3], args[4]);
 					}
 					catch(NumberFormatException ex) {
 						System.out.println(args[1] + " was not recognized as PID.");
@@ -91,6 +104,8 @@ public class LogLevel
 	{
 		final String logLevel = "java -jar loglevel.jar";
 		System.out.println("Description: Lists and sets the logging level of Java Loggers (java.util.logging.Logger) on the run.");
+		System.out.println("             Optionally log4j is also supported but it requires java.util.logging.LoggingMXBean");
+		System.out.println("             interface to be implemented for log4j. See http://www.hapiware.com/jmx-tools.");
 		System.out.println();
 		System.out.println("Usage: " + logLevel + " [-? | -h | -help | --help]");
 		System.out.println("       " + logLevel + " COMMAND [ARGS]");
@@ -103,21 +118,27 @@ public class LogLevel
 		System.out.println("              Start the target JVM with -Dcom.sun.management.jmxremote or");
 		System.out.println("              if you are running JVM 1.6 or later use startjmx service.");
 		System.out.println();
-		System.out.println("          l PID PATTERN");
-		System.out.println("          list PID PATTERN");
+		System.out.println("          l PID [j|J|4] PATTERN");
+		System.out.println("          list PID [j|J|4] PATTERN");
 		System.out.println("              Lists current logging levels for all loggers matching PATTERN");
-		System.out.println("              (Java RE) of a JVM process with PID.");
+		System.out.println("              (Java RE) of a JVM process with PID. Java loggers are identified");
+		System.out.println("              by (J) prefix and log4j loggers by (4). After PID argument may");
+		System.out.println("              be an optional argument to focus 'list' command only to either");
+		System.out.println("              logger type. J or j for Java logger and 4 for log4j logger.");
 		System.out.println();
-		System.out.println("          s PID PATTERN LEVEL");
-		System.out.println("          set PID PATTERN LEVEL");
+		System.out.println("          s PID [j|J|4] PATTERN LEVEL");
+		System.out.println("          set PID [j|J|4] PATTERN LEVEL");
 		System.out.println("              Sets a new logging level LEVEL for all loggers matching PATTERN");
-		System.out.println("              (Java RE) for a JVM process with PID.");
+		System.out.println("              (Java RE) of a JVM process with PID. Java loggers are identified");
+		System.out.println("              by (J) prefix and log4j loggers by (4). After PID argument may");
+		System.out.println("              be an optional argument to focus 'set' command only to either");
+		System.out.println("              logger type. J or j for Java logger and 4 for log4j logger.");
 		System.out.println();
 		System.out.println("Examples:");
 		System.out.println("    " + logLevel + " -?");
 		System.out.println("    " + logLevel + " jobs");
 		System.out.println("    " + logLevel + " l 50001 ^.+");
-		System.out.println("    " + logLevel + " set 50001 ^com\\.hapiware\\.Test.* INFO");
+		System.out.println("    " + logLevel + " set 50001 j ^com\\.hapiware\\.Test.* INFO");
 		System.out.println();
 		System.exit(status);
 	}
@@ -188,14 +209,14 @@ public class LogLevel
 				name,
 				"getLoggerLevel",
 				new String[] { loggerName },
-				new String [] { "java.lang.String" }
+				new String[] { "java.lang.String" }
 			);
 		if(level.trim().length() == 0)
 			level = "Not defined";
 		return level;
 	}
 	
-	private static void showLevels(Integer pid, String loggerNamePattern)
+	private static void showLevels(Integer pid, String loggerType, String loggerNamePattern)
 	{
 		try {
 			MBeanServerConnection connection = getConnection(pid);
@@ -208,61 +229,16 @@ public class LogLevel
 				System.exit(-1);
 			}
 			Pattern pattern = Pattern.compile(loggerNamePattern);
-			ObjectName name = new ObjectName(LOGGING_NAME);
-			String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
-			for(String ln : loggerNames) {
-				if(pattern.matcher(ln).matches())
-					System.out.println(ln + " : " + getLoggerLevel(connection, name, ln));
-			}
-		}
-		catch(IOException e) {
-			e.printStackTrace();
-		}
-		catch(MalformedObjectNameException e) {
-			e.printStackTrace();
-		}
-		catch(NullPointerException e) {
-			e.printStackTrace();
-		}
-		catch(InstanceNotFoundException e) {
-			e.printStackTrace();
-		}
-		catch(ReflectionException e) {
-			e.printStackTrace();
-		}
-		catch(AttributeNotFoundException e) {
-			e.printStackTrace();
-		}
-		catch(MBeanException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private static void setLevels(Integer pid, String loggerNamePattern, String level)
-	{
-		try {
-			MBeanServerConnection connection = getConnection(pid);
-			if(connection == null) {
-				System.out.println("Cannot connect to " + pid + ". JMX agent is not running.");
-				System.out.println(
-					"Start the target JVM with -Dcom.sun.management.jmxremote or" 
-					+ " if you are running JVM 1.6 or later use startjmx service."
-				);
-				System.exit(-1);
-			}
-			Pattern pattern = Pattern.compile(loggerNamePattern);
-			ObjectName name = new ObjectName(LOGGING_NAME);
-			String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
-			for(String ln : loggerNames) {
-				if(pattern.matcher(ln).matches()) {
-					String oldLevel = getLoggerLevel(connection, name, ln);
-					connection.invoke(
-						name,
-						"setLoggerLevel",
-						new String[] { ln, level },
-						new String [] { "java.lang.String", "java.lang.String" }
-					);
-					System.out.println(ln + " : " + oldLevel + " -> " + level);
+			Map<String, ObjectName> names = createObjectNames(loggerType);
+			for(Iterator<String> it = names.keySet().iterator(); it.hasNext(); /* empty */) {
+				String key = it.next();
+				ObjectName name = names.get(key);
+				String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
+				for(String ln : loggerNames) {
+					if(pattern.matcher(ln).matches())
+						System.out.println(
+							key + " " + ln + " : " + getLoggerLevel(connection, name, ln)
+						);
 				}
 			}
 		}
@@ -288,4 +264,78 @@ public class LogLevel
 			e.printStackTrace();
 		}
 	}
+	
+	private static void setLevels(
+		Integer pid,
+		String loggerType,
+		String loggerNamePattern,
+		String level
+	)
+	{
+		try {
+			MBeanServerConnection connection = getConnection(pid);
+			if(connection == null) {
+				System.out.println("Cannot connect to " + pid + ". JMX agent is not running.");
+				System.out.println(
+					"Start the target JVM with -Dcom.sun.management.jmxremote or" 
+					+ " if you are running JVM 1.6 or later use startjmx service."
+				);
+				System.exit(-1);
+			}
+			Pattern pattern = Pattern.compile(loggerNamePattern);
+			Map<String, ObjectName> names = createObjectNames(loggerType);
+			for(Iterator<String> it = names.keySet().iterator(); it.hasNext(); /* empty */) {
+				String key = it.next();
+				ObjectName name = names.get(key);
+				String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
+				for(String ln : loggerNames) {
+					if(pattern.matcher(ln).matches()) {
+						String oldLevel = getLoggerLevel(connection, name, ln);
+						connection.invoke(
+							name,
+							"setLoggerLevel",
+							new String[] { ln, level },
+							new String[] { "java.lang.String", "java.lang.String" }
+						);
+						System.out.println(
+							key + " " + ln + " : " + oldLevel + " -> " + level
+						);
+					}
+				}
+			}
+		}
+		catch(IOException e) {
+			e.printStackTrace();
+		}
+		catch(MalformedObjectNameException e) {
+			e.printStackTrace();
+		}
+		catch(NullPointerException e) {
+			e.printStackTrace();
+		}
+		catch(InstanceNotFoundException e) {
+			e.printStackTrace();
+		}
+		catch(ReflectionException e) {
+			e.printStackTrace();
+		}
+		catch(AttributeNotFoundException e) {
+			e.printStackTrace();
+		}
+		catch(MBeanException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static Map<String, ObjectName> createObjectNames(String loggerType)
+		throws MalformedObjectNameException
+	{
+		Map<String, ObjectName> names = new HashMap<String, ObjectName>();
+		if(loggerType == null || loggerType.equalsIgnoreCase("j"))
+			names.put("(J)", new ObjectName(JAVA_LOGGING_NAME));
+		if(loggerType == null || loggerType.equals("4"))
+			names.put("(4)", new ObjectName(LOG4J_LOGGING_NAME));
+		return names;
+	}
+	
 }
