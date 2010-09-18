@@ -211,7 +211,7 @@ public class LogLevel
 				new String[] { loggerName },
 				new String[] { "java.lang.String" }
 			);
-		if(level.trim().length() == 0)
+		if(level == null || level.trim().length() == 0)
 			level = "Not defined";
 		return level;
 	}
@@ -233,12 +233,17 @@ public class LogLevel
 			for(Iterator<String> it = names.keySet().iterator(); it.hasNext(); /* empty */) {
 				String key = it.next();
 				ObjectName name = names.get(key);
-				String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
-				for(String ln : loggerNames) {
-					if(pattern.matcher(ln).matches())
-						System.out.println(
-							key + " " + ln + " : " + getLoggerLevel(connection, name, ln)
-						);
+				try {
+					String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
+					for(String ln : loggerNames) {
+						if(pattern.matcher(ln).matches())
+							System.out.println(
+								key + " " + ln + " : " + getLoggerLevel(connection, name, ln)
+							);
+					}
+				}
+				catch(InstanceNotFoundException e) {
+					// Does nothing. Just skips the loop.
 				}
 			}
 		}
@@ -249,9 +254,6 @@ public class LogLevel
 			e.printStackTrace();
 		}
 		catch(NullPointerException e) {
-			e.printStackTrace();
-		}
-		catch(InstanceNotFoundException e) {
 			e.printStackTrace();
 		}
 		catch(ReflectionException e) {
