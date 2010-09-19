@@ -5,8 +5,9 @@ README - loglevel
 DESCRIPTION
 -----------
 'loglevel' is a small command line utility to show and change a logging level of Java Loggers
-(java.util.logging.Logger) without restarting the target JVM. With Java 1.5 to get this to work
-requires that the target JVM has been started with -Dcom.sun.management.jmxremote.
+(java.util.logging.Logger) and log4j loggers (org.apache.log4j.Logger) without restarting
+the target JVM. With Java 1.5 to get this to work requires that the target JVM has been started
+with -Dcom.sun.management.jmxremote.
 
 With Java 1.6 or later things are easier. Of course, the above works perfectly well but with
 Java 1.6 even if the target JVM has been started without -Dcom.sun.management.jmxremote
