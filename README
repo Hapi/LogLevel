@@ -18,6 +18,11 @@ by using the companion utility 'startjmx'.
 REQUIREMENTS
 ------------
 - Java 1.5 or later
+- log4j loggers require Log4jJMXSupport utility classes (log4j-jmx-support-x.x.x.jar)
+  - if JMX support for log4j is wanted without touching the source code then two additional
+    libraries are required:
+    - Log4jJMXSupportAgentDelegate (log4j-jmx-support-delegate-1.0.0.jar or later)
+    - General Java agent (agent-2.0.0.jar or later)
 
 Be aware that a dependency to Sun's tools.jar is a system dependency and thus needs to be set
 accordingly if you are to compile this utility from the source. In Sun's reference implementation
