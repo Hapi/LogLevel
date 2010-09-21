@@ -37,7 +37,7 @@ import sun.management.ConnectorAddressLink;
 public class LogLevel
 {
 	private static final String JAVA_LOGGING_NAME = "java.util.logging:type=Logging";
-	private static final String LOG4J_LOGGING_NAME = "org.apache.log4j:type=Logging";
+	private static final String LOG4J_LOGGING_NAME = "com.hapiware.log4j:type=Logging";
 
 	
 	public static void main(String[] args)
