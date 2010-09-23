@@ -289,20 +289,25 @@ public class LogLevel
 			for(Iterator<String> it = names.keySet().iterator(); it.hasNext(); /* empty */) {
 				String key = it.next();
 				ObjectName name = names.get(key);
-				String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
-				for(String ln : loggerNames) {
-					if(pattern.matcher(ln).matches()) {
-						String oldLevel = getLoggerLevel(connection, name, ln);
-						connection.invoke(
-							name,
-							"setLoggerLevel",
-							new String[] { ln, level },
-							new String[] { "java.lang.String", "java.lang.String" }
-						);
-						System.out.println(
-							key + " " + ln + " : " + oldLevel + " -> " + level
-						);
+				try {
+					String[] loggerNames = (String[])connection.getAttribute(name, "LoggerNames");
+					for(String ln : loggerNames) {
+						if(pattern.matcher(ln).matches()) {
+							String oldLevel = getLoggerLevel(connection, name, ln);
+							connection.invoke(
+								name,
+								"setLoggerLevel",
+								new String[] { ln, level },
+								new String[] { "java.lang.String", "java.lang.String" }
+							);
+							System.out.println(
+								key + " " + ln + " : " + oldLevel + " -> " + level
+							);
+						}
 					}
+				}
+				catch(InstanceNotFoundException e) {
+					// Does nothing. Just skips the loop.
 				}
 			}
 		}
@@ -313,9 +318,6 @@ public class LogLevel
 			e.printStackTrace();
 		}
 		catch(NullPointerException e) {
-			e.printStackTrace();
-		}
-		catch(InstanceNotFoundException e) {
 			e.printStackTrace();
 		}
 		catch(ReflectionException e) {
