@@ -1,6 +1,9 @@
 README - loglevel
 -----------------
 
+Usage: java -jar logLevel.jar [-? | -h | -help | --help | --version]
+       java -jar logLevel.jar COMMAND [ARGS]
+
 
 DESCRIPTION
 -----------
