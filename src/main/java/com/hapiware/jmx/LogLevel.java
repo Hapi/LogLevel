@@ -1,12 +1,10 @@
 package com.hapiware.jmx;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -138,24 +136,9 @@ public class LogLevel
 	
 	private static void showVersionAndExit()
 	{
-		final String propertyFile = "version.properties";
-		final String property = "version";
-		Properties p = new Properties();
-		try {
-			InputStream is =
-				Thread.currentThread().getContextClassLoader().getResourceAsStream(propertyFile);
-			if(is == null) {
-				System.out.println(
-					"Version information unavailable due to missing property file: " + propertyFile
-				);
-				System.exit(-1);
-			}
-			p.load(is);
-			System.out.println("  Version: " + p.getProperty(property));
-		}
-		catch(IOException e) {
-			e.printStackTrace();
-		}
+		System.out.println(
+			"  Version: " + LogLevel.class.getPackage().getImplementationVersion()
+		);
 		System.exit(0);
 	}
 
